@@ -3,116 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi Light Up - High Visibility</title>
+    <title>Pi Reflection Dots</title>
     <style>
-        :root {
-            --bright: 0;
-        }
-
         body {
             background-color: #000;
-            /* 光が強くなったら文字を黒く、弱ければ白くする */
-            color: white;
+            color: #fff;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
             margin: 0;
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            overflow: hidden;
+            font-family: sans-serif;
+            overflow: hidden; /* スクロール禁止 */
             user-select: none;
-            -webkit-user-select: none;
-            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
-        /* テキストの視認性確保（黒い縁取り） */
-        p, .status {
-            text-shadow: 
-                2px 2px 4px #000, 
-               -2px -2px 4px #000, 
-                2px -2px 4px #000, 
-               -2px 2px 4px #000;
-            z-index: 10;
-            font-weight: bold;
-            text-align: center;
+        /* ドットを描画する背景キャンバス */
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
         }
 
-        /* 電球本体（影だけで光を表現） */
-        .bulb {
-            width: 120px;
-            height: 120px;
-            background-color: #000;
-            border-radius: 50%;
-            margin-bottom: 40px;
-            /* 2層の影で眩しさを演出 */
-            box-shadow: 
-                0 0 calc(var(--bright) * 10px) calc(var(--bright) * 2px) #fffb00,
-                0 0 calc(var(--bright) * 20px) calc(var(--bright) * 5px) #fff;
-            transition: box-shadow 0.15s ease;
-            border: 1px solid #111;
+        /* 入力欄などのコンテンツ */
+        .content {
             position: relative;
-        }
-
-        /* 間違えた時：完全に消灯 */
-        .bulb.error {
-            box-shadow: none !important;
-            border-color: #000;
+            z-index: 10;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.6); /* 粒で見えなくならないよう背景を少し暗く */
+            padding: 20px;
+            border-radius: 20px;
         }
 
         input {
-            background: #111;
-            border: 2px solid #333;
-            color: #fffb00;
+            background: #222;
+            border: 2px solid #444;
+            color: #0f0;
             font-size: 28px;
             padding: 15px;
             text-align: center;
             width: 80%;
-            max-width: 320px;
-            border-radius: 15px;
+            max-width: 300px;
+            border-radius: 10px;
             outline: none;
-            z-index: 20;
-            /* 入力欄にも縁取り効果 */
-            box-shadow: 0 0 10px #000;
-            -webkit-user-select: auto; 
-            user-select: auto;
-        }
-
-        /* 間違えた時の入力欄 */
-        input.error-input {
-            color: #400;
-            border-color: #200;
         }
 
         .status {
-            margin-top: 25px;
-            font-size: 16px;
-            letter-spacing: 2px;
-            color: #fffb00;
+            margin-top: 20px;
+            color: #0f0;
+            font-weight: bold;
+            text-shadow: 0 0 10px #000;
         }
     </style>
 </head>
-<body style="--bright: 0;">
+<body>
 
-    <div class="bulb" id="bulb"></div>
-    <p id="msg">円周率を正解するほど光り輝く</p>
-    
-    <input type="number" id="piInput" 
-           placeholder="3.1415..." 
-           onpaste="return false;" 
-           oncontextmenu="return false;" 
-           autocomplete="off">
+    <canvas id="canvas"></canvas>
 
-    <div class="status" id="status">READY</div>
+    <div class="content">
+        <p>円周率を入力せよ。<br>正解するほど「点」が生まれる。</p>
+        <input type="number" id="piInput" placeholder="3.1415..." onpaste="return false;" autocomplete="off">
+        <div class="status" id="status">DOTS: 0</div>
+    </div>
 
     <script>
-        // 円周率（必要な分だけ増やせます）
-        const pi = "31415926535897932384626433832795028841971";
+        const pi = "31415926535897932384626433832795028841971693993751";
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
         const inputElement = document.getElementById('piInput');
-        const bulb = document.getElementById('bulb');
         const status = document.getElementById('status');
-        const msg = document.getElementById('msg');
 
+        let dots = [];
+        let targetDotCount = 0;
+
+        // キャンバスサイズ設定
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // ドットのクラス
+        class Dot {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = 3 + Math.random() * 4;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8;
+                this.color = `hsl(${Math.random() * 360}, 100%, 70%)`;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // 壁での反射
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+            }
+        }
+
+        // アニメーションループ
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 目標の数に合わせてドットを増減
+            if (dots.length < targetDotCount) {
+                dots.push(new Dot());
+            } else if (dots.length > targetDotCount) {
+                dots.pop();
+            }
+
+            dots.forEach(dot => {
+                dot.update();
+                dot.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // 入力判定
         inputElement.addEventListener('input', (e) => {
             const val = e.target.value.replace('.', '');
             let correctCount = 0;
@@ -128,41 +151,15 @@
             }
 
             if (isError) {
-                // 【失敗】完全な闇
-                document.body.style.setProperty('--bright', 0);
-                document.body.style.backgroundColor = "#000";
-                document.body.style.color = "#fff";
-                bulb.classList.add('error');
-                inputElement.classList.add('error-input');
-                status.innerText = "暗黒（間違いを検出）";
+                targetDotCount = 0; // 間違えたら全消去
+                status.innerText = "DOTS: 0 (ERROR)";
+                inputElement.style.borderColor = "red";
             } else {
-                // 【成功】光を増幅
-                const brightness = correctCount * 8;
-                document.body.style.setProperty('--bright', brightness);
-                bulb.classList.remove('error');
-                inputElement.classList.remove('error-input');
-                
-                // 光の強さに合わせて背景と文字の色を調整
-                if (correctCount > 10) {
-                    // 10桁以上で背景を少し明るく、文字を黒くして視認性を保つ
-                    document.body.style.backgroundColor = `rgba(255, 251, 0, ${Math.min(correctCount / 40, 0.9)})`;
-                    document.body.style.color = "#000";
-                    msg.style.textShadow = "none";
-                    status.style.textShadow = "none";
-                    status.style.color = "#000";
-                } else {
-                    document.body.style.backgroundColor = "#000";
-                    document.body.style.color = "#fff";
-                    msg.style.textShadow = "2px 2px 4px #000, -2px -2px 4px #000, 2px -2px 4px #000, -2px 2px 4px #000";
-                    status.style.color = "#fffb00";
-                }
-
-                status.innerText = `${correctCount} DIGITS CORRECT`;
+                targetDotCount = correctCount; // 正解数＝ドット数
+                status.innerText = `DOTS: ${correctCount}`;
+                inputElement.style.borderColor = "#444";
             }
         });
-
-        // 念押しでペースト禁止をJSでも強化
-        inputElement.addEventListener('paste', e => e.preventDefault());
     </script>
 </body>
 </html>
