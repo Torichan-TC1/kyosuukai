@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi Light Up - Hard Mode</title>
+    <title>Pi Light Up - Penalty Mode</title>
     <style>
         body {
-            background-color: #111;
+            background-color: #050505; /* より真っ黒に */
             color: white;
             display: flex;
             flex-direction: column;
@@ -16,24 +16,42 @@
             margin: 0;
             font-family: sans-serif;
             overflow: hidden;
-            /* スマホでのテキスト選択を禁止 */
             user-select: none;
             -webkit-user-select: none;
+            transition: background-color 0.5s ease;
         }
 
+        /* 電球本体 */
         .bulb {
             width: 100px;
             height: 100px;
             background-color: #fffb00;
             border-radius: 50%;
             margin-bottom: 50px;
-            box-shadow: 0 0 calc(var(--bright) * 10px) calc(var(--bright) * 2px) #fffb00;
-            transition: box-shadow 0.3s ease;
+            /* 通常の光（黄色） */
+            box-shadow: 0 0 calc(var(--bright) * 8px) calc(var(--bright) * 1px) #fffb00,
+                        0 0 calc(var(--bright) * 15px) calc(var(--bright) * 3px) #fffec0;
+            transition: box-shadow 0.2s ease, background-color 0.2s ease;
+            position: relative;
+        }
+
+        /* 間違えた時の赤い影（通常は透明） */
+        .bulb.error {
+            background-color: #550000; /* 濁った赤 */
+            box-shadow: 0 0 15px 5px #ff0000; /* 暗い赤 */
+            animation: flicker 0.1s infinite; /* 高速点滅 */
+        }
+
+        /* 間違えた時のチカチカするアニメーション */
+        @keyframes flicker {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
         }
 
         input {
-            background: #222;
-            border: 2px solid #444;
+            background: #1a1a1a;
+            border: 2px solid #333;
             color: #fffb00;
             font-size: 24px;
             padding: 10px;
@@ -42,9 +60,14 @@
             max-width: 300px;
             border-radius: 10px;
             outline: none;
-            /* 入力欄自体のコピーも禁止 */
             -webkit-user-select: auto; 
             user-select: auto;
+            transition: border-color 0.3s ease;
+        }
+        
+        input.error-input {
+            border-color: #ff0000;
+            color: #ff0000;
         }
 
         .status {
@@ -57,7 +80,7 @@
 <body style="--bright: 0;">
 
     <div class="bulb" id="bulb"></div>
-    <p>円周率を<strong>手入力</strong>して光らせろ！</p>
+    <p>円周率を手入力しろ！間違いは許されん</p>
     
     <input type="number" id="piInput" 
            placeholder="3.1415..." 
@@ -65,7 +88,7 @@
            oncontextmenu="return false;" 
            autocomplete="off">
 
-    <div class="status" id="status">現在: 0 桁正解 (貼り付け不可)</div>
+    <div class="status" id="status">現在: 0 桁正解</div>
 
     <script>
         const pi = "3141592653589793238462643383279";
@@ -73,31 +96,40 @@
         const bulb = document.getElementById('bulb');
         const status = document.getElementById('status');
 
-        // 念のためJavaScript側でもペーストイベントをブロック
         inputElement.addEventListener('paste', (e) => {
             e.preventDefault();
-            alert("ズルは禁止です！手で入力してください。");
         });
 
         inputElement.addEventListener('input', (e) => {
             const val = e.target.value.replace('.', '');
             let correctCount = 0;
 
+            // 判定ロジック
+            let isError = false;
             for (let i = 0; i < val.length; i++) {
                 if (val[i] === pi[i]) {
                     correctCount++;
                 } else {
+                    isError = true; // 途中で間違えた
                     break;
                 }
             }
 
-            document.body.style.setProperty('--bright', correctCount * 5);
-            status.innerText = `現在: ${correctCount} 桁正解`;
-
-            if (val.length > correctCount) {
-                bulb.style.backgroundColor = '#ff4444';
+            // 演出の切り替え
+            if (isError) {
+                // 【ペナルティ】暗く、赤く、点滅
+                document.body.style.setProperty('--bright', 0); // 通常の明かりを消す
+                bulb.classList.add('error'); // 赤い点滅スタイルを適用
+                inputElement.classList.add('error-input');
+                document.body.style.backgroundColor = '#100000'; // 背景も少し赤く
+                status.innerText = `間違い検出！現在: ${correctCount} 桁まで合ってた`;
             } else {
-                bulb.style.backgroundColor = '#fffb00';
+                // 【正解】明るくしていく
+                document.body.style.setProperty('--bright', correctCount * 6);
+                bulb.classList.remove('error'); // 通常スタイルに戻す
+                inputElement.classList.remove('error-input');
+                document.body.style.backgroundColor = '#050505';
+                status.innerText = `現在: ${correctCount} 桁正解`;
             }
         });
     </script>
