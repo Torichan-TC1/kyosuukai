@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi Reflection Dots</title>
+    <title>Pi Reflection Dots - Panic Mode</title>
     <style>
         body {
             background-color: #000;
@@ -15,11 +15,10 @@
             height: 100vh;
             margin: 0;
             font-family: sans-serif;
-            overflow: hidden; /* スクロール禁止 */
+            overflow: hidden;
             user-select: none;
         }
 
-        /* ドットを描画する背景キャンバス */
         #canvas {
             position: absolute;
             top: 0;
@@ -27,34 +26,47 @@
             z-index: 1;
         }
 
-        /* 入力欄などのコンテンツ */
         .content {
             position: relative;
             z-index: 10;
             text-align: center;
-            background: rgba(0, 0, 0, 0.6); /* 粒で見えなくならないよう背景を少し暗く */
-            padding: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 30px;
             border-radius: 20px;
         }
 
         input {
-            background: #222;
+            background: #111;
             border: 2px solid #444;
             color: #0f0;
-            font-size: 28px;
+            font-size: 32px;
             padding: 15px;
             text-align: center;
             width: 80%;
-            max-width: 300px;
-            border-radius: 10px;
+            max-width: 320px;
+            border-radius: 12px;
             outline: none;
+            transition: all 0.2s ease;
+        }
+
+        /* 【新機能】間違えた時の赤点滅アニメーション */
+        input.panic {
+            color: #ff0000 !important;
+            border-color: #ff0000 !important;
+            box-shadow: 0 0 20px #ff0000;
+            animation: blink 0.2s infinite;
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
         }
 
         .status {
             margin-top: 20px;
-            color: #0f0;
             font-weight: bold;
-            text-shadow: 0 0 10px #000;
+            color: #888;
         }
     </style>
 </head>
@@ -63,7 +75,7 @@
     <canvas id="canvas"></canvas>
 
     <div class="content">
-        <p>円周率を入力せよ。<br>正解するほど「点」が生まれる。</p>
+        <p>円周率を入力せよ。<br>ミスは赤点滅で裁かれる。</p>
         <input type="number" id="piInput" placeholder="3.1415..." onpaste="return false;" autocomplete="off">
         <div class="status" id="status">DOTS: 0</div>
     </div>
@@ -78,7 +90,6 @@
         let dots = [];
         let targetDotCount = 0;
 
-        // キャンバスサイズ設定
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -86,26 +97,21 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // ドットのクラス
         class Dot {
             constructor() {
                 this.x = Math.random() * canvas.width;
                 this.y = Math.random() * canvas.height;
                 this.size = 3 + Math.random() * 4;
-                this.vx = (Math.random() - 0.5) * 8;
-                this.vy = (Math.random() - 0.5) * 8;
+                this.vx = (Math.random() - 0.5) * 10;
+                this.vy = (Math.random() - 0.5) * 10;
                 this.color = `hsl(${Math.random() * 360}, 100%, 70%)`;
             }
-
             update() {
                 this.x += this.vx;
                 this.y += this.vy;
-
-                // 壁での反射
                 if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
                 if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
             }
-
             draw() {
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
@@ -116,17 +122,13 @@
             }
         }
 
-        // アニメーションループ
         function animate() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // 目標の数に合わせてドットを増減
             if (dots.length < targetDotCount) {
                 dots.push(new Dot());
             } else if (dots.length > targetDotCount) {
                 dots.pop();
             }
-
             dots.forEach(dot => {
                 dot.update();
                 dot.draw();
@@ -135,7 +137,6 @@
         }
         animate();
 
-        // 入力判定
         inputElement.addEventListener('input', (e) => {
             const val = e.target.value.replace('.', '');
             let correctCount = 0;
@@ -151,13 +152,13 @@
             }
 
             if (isError) {
-                targetDotCount = 0; // 間違えたら全消去
-                status.innerText = "DOTS: 0 (ERROR)";
-                inputElement.style.borderColor = "red";
+                targetDotCount = 0; 
+                inputElement.classList.add('panic'); // 赤点滅クラスを追加
+                status.innerText = "!!! ERROR !!!";
             } else {
-                targetDotCount = correctCount; // 正解数＝ドット数
+                targetDotCount = correctCount;
+                inputElement.classList.remove('panic'); // 正常ならクラスを削除
                 status.innerText = `DOTS: ${correctCount}`;
-                inputElement.style.borderColor = "#444";
             }
         });
     </script>
